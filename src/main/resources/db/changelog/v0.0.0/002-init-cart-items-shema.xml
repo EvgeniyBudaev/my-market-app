@@ -5,7 +5,7 @@
           http://www.liquibase.org/xml/ns/dbchangelog
           http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
 
-    <changeSet id="create_cart_items_table" author="DLinnik">
+    <changeSet id="create_cart_items_table" author="EvgeniyBudaev">
         <preConditions onFail="MARK_RAN" onError="HALT">
             <not>
                 <tableExists tableName="cart_items"/>
@@ -33,7 +33,7 @@
         </rollback>
     </changeSet>
 
-    <changeSet id="create_cart_items_foreign_key_items" author="DLinnik">
+    <changeSet id="create_cart_items_foreign_key_items" author="EvgeniyBudaev">
         <preConditions>
             <not>
                 <foreignKeyConstraintExists foreignKeyName="fk_cart_items_item"/>
