@@ -1,7 +1,11 @@
 target/
+.gradle
+!gradle/wrapper/gradle-wrapper.jar
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+!**/src/main/**/build/
+!**/src/test/**/build/
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
@@ -36,3 +40,6 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+# my-market-app
+/db_data/
