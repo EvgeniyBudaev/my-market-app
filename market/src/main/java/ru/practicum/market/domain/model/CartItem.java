@@ -1,0 +1,35 @@
+package ru.practicum.market.domain.model;
+
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.experimental.FieldDefaults;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
+
+@Table(name = "cart_items")
+@Getter
+@Setter
+@ToString(callSuper = true)
+@AllArgsConstructor
+@NoArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
+public class CartItem extends BaseEntity {
+
+    @Column("item_id")
+    Long itemId;
+
+    int quantity;
+
+    @Version
+    Long version;
+
+    public CartItem(Long itemId) {
+        this.itemId = itemId;
+        this.quantity = 0;
+    }
+}
