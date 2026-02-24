@@ -1,0 +1,101 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: market-postgres
+    environment:
+      POSTGRES_DB: marketdb
+      POSTGRES_USER: market
+      POSTGRES_PASSWORD: market
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "market"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - market-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: market-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - market-network
+
+  auth-server:
+    build:
+      context: .
+      dockerfile: auth-server/Dockerfile
+    container_name: auth-server
+    ports:
+      - "9000:9000"
+    networks:
+      - market-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9000/login"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: payment-service/Dockerfile
+    container_name: payment-service
+    environment:
+      SERVER_PORT: 8081
+      PAYMENT_INITIAL_BALANCE: 1000000
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:9000
+    ports:
+      - "8081:8081"
+    depends_on:
+      auth-server:
+        condition: service_healthy
+    networks:
+      - market-network
+
+  market-app:
+    build:
+      context: .
+      dockerfile: market-app/Dockerfile
+    container_name: my-market-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      payment-service:
+        condition: service_started
+      auth-server:
+        condition: service_healthy
+    environment:
+      SPRING_R2DBC_URL: r2dbc:postgresql://postgres:5432/marketdb
+      SPRING_R2DBC_USERNAME: market
+      SPRING_R2DBC_PASSWORD: market
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      PAYMENT_SERVICE_URL: http://payment-service:8081
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_AUTH_SERVER_TOKEN_URI: http://auth-server:9000/oauth2/token
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - market-network
+
+volumes:
+  pgdata:
+
+networks:
+  market-network:
+    driver: bridge
+
