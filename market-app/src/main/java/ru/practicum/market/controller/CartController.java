@@ -1,0 +1,84 @@
+package ru.practicum.market.controller;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
+import ru.practicum.market.enums.ItemAction;
+import ru.practicum.market.security.SecurityUtils;
+import ru.practicum.market.service.CartService;
+import ru.practicum.market.service.PaymentClient;
+
+@Controller
+@RequestMapping("/cart")
+@RequiredArgsConstructor
+public class CartController {
+
+    private final CartService cartService;
+    private final PaymentClient paymentClient;
+
+    @GetMapping("/items")
+    public Mono<String> getCartItems(Model model) {
+        return cartService.getCartItems()
+                .collectList()
+                .zipWith(cartService.getTotalPrice())
+                .zipWith(paymentClient.getBalance())
+                .zipWith(paymentClient.isServiceAvailable())
+                .zipWith(SecurityUtils.getCurrentUsername().defaultIfEmpty(""))
+                .doOnNext(tuple -> {
+                    var itemsAndTotalAndBalanceAndService = tuple.getT1();
+                    var itemsAndTotalAndBalance = itemsAndTotalAndBalanceAndService.getT1();
+                    var itemsAndTotal = itemsAndTotalAndBalance.getT1();
+                    var items = itemsAndTotal.getT1();
+                    var total = itemsAndTotal.getT2();
+                    var balance = itemsAndTotalAndBalance.getT2();
+                    var paymentServiceAvailable = itemsAndTotalAndBalanceAndService.getT2();
+                    var username = tuple.getT2();
+
+                    model.addAttribute("items", items);
+                    model.addAttribute("total", total);
+                    model.addAttribute("balance", balance);
+                    model.addAttribute("paymentServiceAvailable", paymentServiceAvailable);
+                    model.addAttribute("username", username);
+
+                    boolean canCheckout = paymentServiceAvailable && balance >= total;
+                    model.addAttribute("canCheckout", canCheckout);
+                })
+                .thenReturn("cart");
+    }
+
+    @PostMapping(value = "/items", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    public Mono<String> updateCartItem(ServerWebExchange exchange, Model model) {
+        return exchange.getFormData().flatMap(formData -> {
+            Long id = Long.parseLong(formData.getFirst("id"));
+            ItemAction action = ItemAction.valueOf(formData.getFirst("action"));
+
+            return cartService.updateCartItem(id, action)
+                    .then(cartService.getCartItems().collectList())
+                    .zipWith(cartService.getTotalPrice())
+                    .zipWith(paymentClient.getBalance())
+                    .zipWith(paymentClient.isServiceAvailable())
+                    .doOnNext(tuple -> {
+                        var itemsAndTotalAndBalance = tuple.getT1();
+                        var itemsAndTotal = itemsAndTotalAndBalance.getT1();
+                        var items = itemsAndTotal.getT1();
+                        var total = itemsAndTotal.getT2();
+                        var balance = itemsAndTotalAndBalance.getT2();
+                        var paymentServiceAvailable = tuple.getT2();
+
+                        model.addAttribute("items", items);
+                        model.addAttribute("total", total);
+                        model.addAttribute("balance", balance);
+                        model.addAttribute("paymentServiceAvailable", paymentServiceAvailable);
+
+                        boolean canCheckout = paymentServiceAvailable && balance >= total;
+                        model.addAttribute("canCheckout", canCheckout);
+                    })
+                    .thenReturn("cart");
+        });
+    }
+}
+
