@@ -1,0 +1,42 @@
+services:
+  db:
+    container_name: db
+    image: postgres:17.5
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=market
+    ports:
+      - "5433:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  app:
+    container_name: market-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: market-app
+    restart: on-failure
+    environment:
+      - DATASOURCE_SCHEMA_NAME=public
+      - SPRING_R2DBC_URL=r2dbc:postgresql://db:5432/market
+      - SPRING_R2DBC_USERNAME=postgres
+      - SPRING_R2DBC_PASSWORD=postgres
+      - SPRING_LIQUIBASE_URL=jdbc:postgresql://db:5432/market
+      - SPRING_LIQUIBASE_USER=postgres
+      - SPRING_LIQUIBASE_PASSWORD=postgres
+      - LOGGING_PRACTICUM_LEVEL=DEBUG
+      - SPRING_WEBFLUX_MULTIPART_MAX_DISK_USAGE_PER_PART=10MB
+      - SPRING_WEBFLUX_MULTIPART_MAX_IN_MEMORY_SIZE=1MB
+      - SPRING_WEBFLUX_MULTIPART_MAX_PARTS=256
+      - SPRING_CODEC_MAX_IN_MEMORY_SIZE=2MB
+      - IMAGE_PATH=images
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+volumes:
+  db-data:
