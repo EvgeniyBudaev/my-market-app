@@ -1,0 +1,74 @@
+services:
+  db:
+    container_name: db
+    image: postgres:17.5
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=market
+    ports:
+      - "5433:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+  redis:
+    container_name: redis
+    image: redis/redis-stack:7.2.0-v15
+    restart: always
+    ports:
+      - "6379:6379"
+
+  market-app:
+    container_name: market-app
+    build:
+      context: ./market
+      dockerfile: Dockerfile
+    image: market-app
+    restart: on-failure
+    environment:
+      - SERVER_PORT=8080
+      - DATASOURCE_SCHEMA_NAME=public
+      - SPRING_R2DBC_URL=r2dbc:postgresql://db:5432/market
+      - SPRING_R2DBC_USERNAME=postgres
+      - SPRING_R2DBC_PASSWORD=postgres
+      - SPRING_LIQUIBASE_URL=jdbc:postgresql://db:5432/market
+      - SPRING_LIQUIBASE_USER=postgres
+      - SPRING_LIQUIBASE_PASSWORD=postgres
+      - LOGGING_PRACTICUM_LEVEL=DEBUG
+      - SPRING_WEBFLUX_MULTIPART_MAX_DISK_USAGE_PER_PART=10MB
+      - SPRING_WEBFLUX_MULTIPART_MAX_IN_MEMORY_SIZE=1MB
+      - SPRING_WEBFLUX_MULTIPART_MAX_PARTS=256
+      - SPRING_CODEC_MAX_IN_MEMORY_SIZE=2MB
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_TTL=PT1M
+      - IMAGE_PATH=/market-app/images
+      - PAYMENTS_BASE_URL=http://payments-app:8081
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./images:/market-app/images
+    depends_on:
+      - db
+      - redis
+      - payments-app
+
+  payments-app:
+    container_name: payments-app
+    build:
+      context: ./payments
+      dockerfile: Dockerfile
+    image: payments-app
+    restart: on-failure
+    environment:
+      - SERVER_PORT=8081
+      - LOGGING_PRACTICUM_LEVEL=DEBUG
+      - SPRING_WEBFLUX_MULTIPART_MAX_DISK_USAGE_PER_PART=10MB
+      - SPRING_WEBFLUX_MULTIPART_MAX_IN_MEMORY_SIZE=1MB
+      - SPRING_WEBFLUX_MULTIPART_MAX_PARTS=256
+      - SPRING_CODEC_MAX_IN_MEMORY_SIZE=2MB
+    ports:
+      - "8081:8081"
+
+volumes:
+  db-data:
